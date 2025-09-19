@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journées Européennes du Patrimoine - Jeu de Piste</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #0055a4, #ffd700);
+      font-family: 'Arial', sans-serif;
+    }
+    .card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+    #map {
+      height: 400px;
+    }
+    .progress-bar {
+      height: 8px;
+      background-color: #e5e7eb;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      background-color: #ffd700;
+      transition: width 0.3s linear;
+    }
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    /* Style pour les marqueurs numérotés */
+    .custom-marker div {
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body class="text-white min-h-screen flex flex-col">
+
+  <!-- En-tête -->
+  <header class="text-center py-6 px-4">
+    <h1 class="text-3xl md:text-4xl font-extrabold">Journées Européennes du Patrimoine, sur les traces des ancêtres de Léa</h1>
+    <p class="text-base md:text-lg mt-2">À travers une balade audio de 4.7km, découvrez les secrets de nos villages</p>
+  </header>
+
+  <!-- Carte toujours visible en haut sur mobile -->
+  <div class="w-full max-w-7xl mx-auto px-4 mb-6">
+    <div id="map" class="rounded-lg shadow-md"></div>
+  </div>
+
+  <!-- Contenu principal -->
+  <div class="flex flex-col lg:flex-row flex-1 w-full max-w-7xl mx-auto px-4 gap-6">
+
+    <!-- Colonne droite : Étapes audio -->
+    <section class="flex-1 flex flex-col">
+      <main id="etapes" class="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12 w-full"></main>
+    </section>
+
+  </div>
+
+  <!-- Pied de page -->
+  <footer class="bg-gray-900 text-gray-300 w-full py-6 px-6">
+    <!-- Contact -->
+    <div>
+      <h3 class="font-bold text-lg mb-2">Contact</h3>
+      <p>📞 <a href="tel:+33123456789" class="underline hover:text-yellow-400">01 23 45 67 89</a></p>
+    </div>
+    <!-- Logos -->
+    <div class="flex gap-6 flex-wrap justify-end">
+      <img src="logo1.png" alt="Logo 1" class="h-12 md:h-20">
+      <img src="logo2.png" alt="Logo 2" class="h-12 md:h-20">
+      <img src="logo3.png" alt="Logo 3" class="h-12 md:h-20">
+    </div>
+  </footer>
+
+  <script>
+    // Étapes avec titres personnalisés et fichiers audio
+    const audios = [
+      { fichier: "indice1.mp3", titre: "Introduction au jeu", coords: [46.214074, 4.255124] },
+      { fichier: "indice2.mp3", titre: "Le début de l'aventure", coords: [46.214074, 4.255124] },
+      { fichier: "indice3.mp3", titre: "1.Le château de la madeleine", coords: [46.212159, 4.255637] },
+      { fichier: "indice4.mp3", titre: "1.2 Nouveau ancêtre débloqué", coords: [46.212159, 4.255637] },
+      { fichier: "indice5.mp3", titre: "2. L'église romane", coords: [46.212364, 4.255125] },
+      { fichier: "indice6.mp3", titre: "2.2 Indice sur le prochain ancêtre", coords: [46.212290, 4.254898] },
+      { fichier: "indice7.mp3", titre: "3.La croix blanche", coords: [46.214069, 4.255620] },
+      { fichier: "indice8.mp3", titre: "4.Église de Saint-Maurice", coords: [46.216911, 4.252969] },
+      { fichier: "indice9.mp3", titre: "5. La légende du monument", coords: [46.217832, 4.252098] },
+      { fichier: "indice10.mp3", titre: "6. L'église devenue chapelle", coords: [46.218209, 4.251943] },
+      { fichier: "indice11.mp3", titre: "6.2 Un cimetière fascinant", coords: [46.218149, 4.251747] },
+      { fichier: "indice12.mp3", titre: "6.3Un cimetière particulier", coords: [46.218149, 4.251747] },
+      { fichier: "indice13.mp3", titre: "6.4 Admirez la vue", coords: [46.218169, 4.251661] },
+      { fichier: "indice14.mp3", titre: "7. La maison ragot", coords: [46.221122, 4.252746] },
+      { fichier: "indice15.mp3", titre: "8.Le four à chaux", coords: [46.222782, 4.243660] },
+      { fichier: "indice16.mp3", titre: "On fait le point ?", coords: [46.214129, 4.255208] }
+    ];
+
+    const etapes = document.getElementById("etapes");
+
+    // Initialiser la carte Leaflet
+    const map = L.map("map").setView([46.2122, 4.25556], 14);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap"
+    }).addTo(map);
+
+    // Génération des cartes audio
+    audios.forEach((audio, index) => {
+      const card = document.createElement("div");
+      card.className = "card bg-white text-gray-900 rounded-2xl p-6 shadow-md";
+
+      card.innerHTML = `
+        <h2 class="text-lg md:text-xl font-semibold mb-2">${audio.titre}</h2>
+        <audio id="audio${index+1}" controls class="w-full mb-2">
+          <source src="audio/${audio.fichier}" type="audio/mpeg">
+          Votre navigateur ne supporte pas la lecture audio.
+        </audio>
+        <div class="progress-bar"><div id="progress${index+1}" class="progress-fill"></div></div>
+        <button class="mt-3 px-4 py-2 bg-yellow-500 text-black font-semibold rounded-lg shadow hover:bg-yellow-400 transition" onclick="focusOnMarker(${index})">
+          Voir sur la carte
+        </button>
+      `;
+
+      etapes.appendChild(card);
+
+      // Gestion de la jauge de progression
+      const audioEl = card.querySelector(`#audio${index+1}`);
+      const progressFill = card.querySelector(`#progress${index+1}`);
+
+      audioEl.addEventListener("timeupdate", () => {
+        const pourcentage = (audioEl.currentTime / audioEl.duration) * 100;
+        progressFill.style.width = `${pourcentage}%`;
+      });
+
+      // Fonction scroll depuis la carte
+      audio.scrollToCard = () => {
+        card.scrollIntoView({ behavior: "smooth" });
+        card.classList.add("ring-4", "ring-yellow-400");
+        setTimeout(() => card.classList.remove("ring-4", "ring-yellow-400"), 2000);
+      };
+    });
+
+    // Tableau des marqueurs
+    const markers = [];
+
+    // Ajout des marqueurs numérotés
+    audios.forEach((audio, index) => {
+      const icon = L.divIcon({
+        className: "custom-marker",
+        html: `<div class="flex items-center justify-center bg-yellow-500 text-black font-bold rounded-full w-8 h-8 shadow-md">${index + 1}</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      const marker = L.marker(audio.coords, { icon }).addTo(map);
+      marker.bindPopup(`<b>${index + 1}. ${audio.titre}</b>`).on("click", audio.scrollToCard);
+
+      markers.push(marker);
+    });
+
+    // Fonction pour centrer la carte sur un marqueur depuis un bouton
+    function focusOnMarker(index) {
+      map.setView(markers[index].getLatLng(), 16, { animate: true });
+      markers[index].openPopup();
+    }
+  </script>
+</body>
+</html>
